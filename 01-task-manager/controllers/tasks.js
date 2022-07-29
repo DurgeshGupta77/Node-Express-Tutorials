@@ -1,89 +1,96 @@
 const Task = require('../models/Task');
+const asyncwrapper = require('../middleware/async');
+const { createCustomError } = require('../errors/custom-error');
 
-const getAllTasks = async (req, res) => {
-    try {
-        const task = await Task.find({});
-        res.status(200).json({
-            msg: 'Get All Task Controller',
-            data: task,
-        })
-    } catch (error) {
-        res.status(500).json({
-            msg: 'Error in Get All Task Controller',
-            error: error.message,
-        })
-    }
-    res.send('Get All Tasks');
-}
+const getAllTasks = asyncwrapper(async (req, res) => {
+    const tasks = await Task.find({});
+    res.status(200).json({
+        tasks,
+    });
+
+
+    // res.status(200).json({
+    //     msg: 'Get All Task Controller',
+    //     data: task,
+    // })
+})
 
 // Status 201 is for successful POST request
-const createTask = async (req, res) => {
-    try {
-        const task = await Task.create(req.body)
-        res.status(201).json({
-            msg: 'Create Task Controller',
-            data: task,
-        })
-    } catch (error) {
-        res.status(500).json({
-            msg: 'Error in Create Task Controller',
-            error: error.message,
-        })
-    }
-}
+const createTask = asyncwrapper(async (req, res) => {
+    const task = await Task.create(req.body)
+    res.status(201).json({
+        task,
+    })
 
-const getTask = async (req, res) => {
+    // res.status(201).json({
+    //     msg: 'Create Task Controller',
+    //     data: task,
+    // })
+})
 
-    try {
-        // Get me ID form req.params with alias taskID
-        const { id: TaskID } = req.params;
-        const task = await Task.findOne({ _id: TaskID });
+const getTask = asyncwrapper(async (req, res, next) => {
 
-        if (!task) {
-            return res.status(400).json({
-                msg: `No ID ${TaskID} found in Get Single Task`,
-            })
-        }
+    // Get me ID form req.params with alias taskID
+    const { id: TaskID } = req.params;
+    const task = await Task.findOne({ _id: TaskID });
 
-        res.status(200).json({
-            msg: 'Get Single Task',
-            id: req.params.id,
-            data: task,
-        })
-
-    } catch (error) {
-        res.status(500).json({
-            msg: 'Error in Get Single Task Controller',
-            error: error.message,
-        });
+    if (!task) {
+        return next(createCustomError(`No task with id ${TaskID} found`, 404));
     }
 
-}
+    // res.status(200).json({
+    //     msg: 'Get Single Task',
+    //     id: req.params.id,
+    //     data: task,
+    // })
 
-const updateTask = (req, res) => {
-    res.send('Update Task');
-}
+    res.status(200).json({
+        task,
+    })
 
-const deleteTask = async (req, res) => {
-    try {
-        const { id: taskID } = req.params;
-        const task = await Task.findOneAndDelete({ _id: taskID });
-        if (!task) {
-            return res.status(404).json({
-                msg: `No ID with ${taskID} found in Delete Controller`,
-            })
-        }
-        res.status(200).json({
-            msg: 'Delete Controller Initiated and Completed',
-            id: taskID,
-        })
-    } catch (error) {
-        res.status(500).json({
-            msg: 'Error in Delete Controller',
-            error: error.message,
-        })
+})
+
+const updateTask = asyncwrapper(async (req, res, next) => {
+    const { id: taskID } = req.params;
+
+    const task = await Task.findOneAndUpdate({ _id: taskID }, req.body, {
+        new: true,
+        runValidators: true,
+    });
+
+    // We added new true so that in our output in Post man API we get new updated value instead of the previous one
+    // We added runValidators to true so that we can run the validator described in the models/Task.js
+
+    if (!task) {
+        return next(createCustomError(`No task with id ${taskID} found`, 404));
     }
-}
+
+    // res.status(200).json({
+    //     id: taskID,
+    //     data: tasks,
+    // })
+
+    res.status(200).json({
+        task,
+    })
+
+})
+
+const deleteTask = asyncwrapper(async (req, res, next) => {
+    const { id: taskID } = req.params;
+    const task = await Task.findOneAndDelete({ _id: taskID });
+    if (!task) {
+        return next(createCustomError(`No task with id ${taskID} found`, 404));
+    }
+    // res.status(200).json({
+    //     msg: 'Delete Controller Initiated and Completed',
+    //     id: taskID,
+    // })
+
+    res.status(200).json({
+        task
+    })
+})
 
 module.exports = {
     getAllTasks,
